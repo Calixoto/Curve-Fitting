@@ -1,40 +1,58 @@
-import pandas as pd
 import numpy as np
-from scipy.optimize import curve_fit
+import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.linalg import norm
 
-# Carregar os dados do arquivo CSV, ignorando a última linha
+
+def base_radial(x, c, r):
+    return np.exp(-(norm(x - c) / r) ** 2)
+
+
+def ajuste_curvas(x, y, num_bases, r):
+    # Criação das matrizes de design
+    X = np.zeros((len(x), num_bases))
+    for i in range(num_bases):
+        for j in range(len(x)):
+            X[j, i] = base_radial(x[j], x.mean() + i *
+                                  (x.max() - x.min()) / (num_bases - 1), r)
+
+    # Cálculo dos pesos
+    w = np.linalg.lstsq(X, y, rcond=None)[0]
+
+    # Predição dos valores ajustados
+    y_pred = X.dot(w)
+
+    return y_pred
+
+
+# Carregar os dados do arquivo CSV
 data = pd.read_csv('dados.csv', skipfooter=1, engine='python')
+sum_data = pd.read_csv('dados.csv', nrows=1, skiprows=25,
+                       usecols=range(1, 13), engine='python').columns
 
-# Extrair os meses
-meses = data.columns[1:]
+# Extrair os valores para o ano inteiro
+x = np.arange(1, 13)
+y = np.array(sum_data).astype(float)
 
-# Extrair os dados de hora e valores mensais
-hora = data['Hora'].values
-valores_mensais = data[meses].values
+# Remover NaNs e infs de x e y
+print(x)
+valid_indices = np.isfinite(x) & np.isfinite(y)
+x = x[valid_indices]
+y = y[valid_indices]
 
-# Função de ajuste - modelo polinomial de grau 2
+# Parâmetros do ajuste de curvas
+num_bases = 100  # Número de funções de base radial
+r = 1.0  # Parâmetro de escala das funções de base radial
 
+# Ajuste de curvas
+y_pred = ajuste_curvas(x, y, num_bases, r)
 
-def ajuste_anual(x, a, b, c):
-    return a * x**2 + b * x + c
-
-
-# Realizar o ajuste anual para cada ano
-for i, ano in enumerate(valores_mensais):
-    # Ajustar os dados anuais
-    popt, pcov = curve_fit(ajuste_anual, hora, ano)
-
-    # Gerar valores preditos para o ano atual
-    y_pred = ajuste_anual(hora, *popt)
-
-    # Plotar os dados reais e o ajuste anual
-    plt.plot(hora, ano, 'o', label='Dados Reais')
-    plt.plot(hora, y_pred, label='Ajuste Anual')
-
-    plt.xlabel('Hora')
-    plt.ylabel('Valores')
-    plt.title(f'Ajuste Anual - Ano {meses[i]}')
-
-    plt.legend()
-    plt.show()
+# Plotagem do resultado
+plt.figure(figsize=(10, 6))
+plt.plot(x, y, 'bo', label='Dados anuais')
+plt.plot(x, y_pred, 'r-', label='Ajuste de curvas anual')
+plt.legend()
+plt.xlabel('Meses')
+plt.ylabel('Intensidade')
+plt.title('Ajuste de curvas anual')
+plt.show()

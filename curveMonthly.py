@@ -26,8 +26,6 @@ def ajuste_curvas(x, y, num_bases, r):
 
 
 # Carregar os dados do arquivo CSV
-data = pd.read_csv('dados.csv')
-
 data = pd.read_csv('dados.csv', skipfooter=1, engine='python')
 
 # Extrair os valores para o mês de janeiro
